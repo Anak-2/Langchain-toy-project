@@ -9,7 +9,9 @@ cuisine = st.sidebar.selectbox(
 if cuisine:
     response = langchain_helper.generate_restaurant_name_and_items(cuisine)
     st.header(response['restaurant_name'].strip())
-    menu_items = response['menu_items'].strip().split(",")
-    st.write("**Menu Items**")
+    menu_items = response['menu_item'].strip().split(",")
+    st.write("**Menu Item**")
     for item in menu_items:
         st.write("-", item)
+    st.write("**Recipe**")
+    st.write(response['menu_recipe'].strip())

@@ -34,12 +34,22 @@ def generate_restaurant_name_and_items(cuisine):
     )
 
     menu_chain = LLMChain(
-        llm=llm, prompt=prompt_template_menu, output_key="menu_items")
+        llm=llm, prompt=prompt_template_menu, output_key="menu_item")
+
+    # Chain 3: Menu Recipe
+    prompt_template_recipe = PromptTemplate(
+        input_variables=['menu_item'],
+        template="Introduce a recipe for {menu_item} and please summarize the {menu_item} recipe in 3 to 5 lines."
+    )
+
+    recipe_chain = LLMChain(
+        llm=llm, prompt=prompt_template_recipe, output_key="menu_recipe"
+    )
 
     chain = SequentialChain(
-        chains=[name_chain, menu_chain],
+        chains=[name_chain, menu_chain, recipe_chain],
         input_variables=['cuisine'],
-        output_variables=['restaurant_name', 'menu_items']
+        output_variables=['restaurant_name', 'menu_item', 'menu_recipe']
     )
 
     response = chain({"cuisine": cuisine})
