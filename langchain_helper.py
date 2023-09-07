@@ -1,5 +1,6 @@
 import streamlit as st
 import os
+import dotenv
 from langchain.agents import load_tools
 from langchain.agents import initialize_agent
 from langchain.agents import AgentType
@@ -8,12 +9,16 @@ from langchain.prompts import PromptTemplate
 from langchain.llms import OpenAI
 from langchain.chains import SequentialChain
 from IPython.display import display
+from langchain.chat_models import ChatOpenAI
+from langchain.memory import ConversationBufferWindowMemory
 
-from secret_key import openapi_key
+dotenv_file = dotenv.find_dotenv()
+dotenv.load_dotenv(dotenv_file)
 
-os.environ['OPENAI_API_KEY'] = openapi_key
-
+# model 변수로 지정 가능
 llm = OpenAI(temperature=0.5)
+memory = ConversationBufferWindowMemory()
+chatopenai = ChatOpenAI(model_name="gpt-3.5-turbo")
 
 
 def generate_restaurant_name_and_items(cuisine):
@@ -57,5 +62,5 @@ def generate_restaurant_name_and_items(cuisine):
     return response
 
 
-# if __name__ == "__main__":
-#     print(generate_restaurant_name_and_items("Italian"))
+if __name__ == "__main__":
+    print(generate_restaurant_name_and_items("Italian"))
