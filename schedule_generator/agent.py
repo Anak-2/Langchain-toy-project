@@ -6,7 +6,6 @@ from langchain.agents import load_tools
 from langchain.schema import SystemMessage
 from langchain.prompts import PromptTemplate
 from langchain import OpenAI
-from googletrans import Translator
 import streamlit as st
 from langchain.chat_models import ChatOpenAI
 from langchain import LLMChain
@@ -18,7 +17,7 @@ dotenv.load_dotenv(dotenv_file)
 # llm = OpenAI(temperature=0.7)
 llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.7, streaming=True)
 
-tools = load_tools(["serpapi", "llm-math"], llm=llm)
+# tools = load_tools(["serpapi", "llm-math"], llm=llm)
 
 
 def make_schedule(job, aim, schedule):
@@ -84,5 +83,3 @@ response = make_schedule(
     "모던 자바 인 액션 10장부터 14장 까지 읽고, 학교 수업 복습, 그리고 Node.js 기초 공부",
     "1시부터 2시 30분까지 물리 수업, 4시부터 7시까지 북한 사회의 이해 수업"
 )
-
-print(response['created_schedule'])
