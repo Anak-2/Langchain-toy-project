@@ -32,9 +32,9 @@ vectorstore = FAISS(embeddings_model.embed_query,
 
 
 todo_prompt = PromptTemplate.from_template(
-    "You are a planner who is an expert at coming up with a todo list for a given objective. Come up with a todo list for this objective: {objective}"
+    "You are a great travel planner. You should actively ask {objective} from customers how many days they would like to visit the country or city they want to visit, how much it will cost, and activities such as sightseeing, activities, shopping, food, etc."
 )
-todo_chain = LLMChain(llm=OpenAI(temperature=0), prompt=todo_prompt)
+todo_chain = LLMChain(llm=OpenAI(temperature=0.6), prompt=todo_prompt)
 search = SerpAPIWrapper()
 tools = [
     Tool(
@@ -45,7 +45,7 @@ tools = [
     Tool(
         name="TODO",
         func=todo_chain.run,
-        description="useful for when you need to come up with todo lists. Input: an objective to create a todo list for. Output: a todo list for that objective. Please be very clear what the objective is!",
+        description="useful for when you need to come up with todo lists. Input: an objective to create a course for. Output: a todo list for that objective. Please be very clear what the objective is!",
     ),
 ]
 
@@ -79,5 +79,5 @@ baby_agi = BabyAGI.from_llm(
     verbose=verbose,
     max_iterations=max_iterations,
 )
-OBJECTIVE = "Tell me the top 5 most popular movies of all time as of September 2023."
+OBJECTIVE = "Please write an Osaka sightseeing course. I'm planning to go from December 24th to 27th, and I want to go on a trip that focuses on festivals, delicious food, activities, and sightseeing."
 baby_agi({"objective": OBJECTIVE})
