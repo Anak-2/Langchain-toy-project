@@ -1,10 +1,10 @@
 from langchain import OpenAI, SerpAPIWrapper, LLMChain
 from langchain.agents import ZeroShotAgent, Tool, AgentExecutor
+from langchain.tools import GooglePlacesTool
 import faiss
 import os
 from collections import deque
 from typing import Dict, List, Optional, Any
-
 from langchain import LLMChain, OpenAI, PromptTemplate
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.llms import BaseLLM
@@ -12,11 +12,15 @@ from langchain.vectorstores.base import VectorStore
 from pydantic import BaseModel, Field
 from langchain.chains.base import Chain
 from langchain_experimental.autonomous_agents import BabyAGI
+from langchain.memory import ConversationBufferMemory
 
 import dotenv
 
 from langchain.vectorstores import FAISS
 from langchain.docstore import InMemoryDocstore
+
+import tools.googlePlaces
+import tools.search
 
 dotenv_file = dotenv.find_dotenv()
 dotenv.load_dotenv(dotenv_file)
@@ -32,35 +36,38 @@ index = faiss.IndexFlatL2(embedding_size)
 vectorstore = FAISS(embeddings_model.embed_query,
                     index, InMemoryDocstore({}), {})
 
+# Define Memory
+memory = ConversationBufferMemory()
 
+# Define Tools
 todo_prompt = PromptTemplate.from_template(
-    "You are a great travel planner. You should actively ask {objective} from customers how many days they would like to visit the country or city they want to visit, how much it will cost, and activities such as sightseeing, activities, shopping, food, etc."
+    "You are a great travel planner. You should actively ask from customers how many days they would like to visit the country or city they want to visit, how much it will cost, and activities such as sightseeing, activities, shopping, food, etc."
 )
+todo_chain = LLMChain(llm=OpenAI(temperature=0.6),
+                      prompt=todo_prompt, memory=memory)
+google_place_tool = GooglePlacesTool()
+search_tool = SerpAPIWrapper()
 
-todo_chain = LLMChain(llm=OpenAI(temperature=0.6), prompt=todo_prompt)
-search = SerpAPIWrapper()
 tools = [
     Tool(
         name="Search",
-        func=search.run,
-        description="useful for when you need to answer questions about current events",
+        func=search_tool.run,
+        description="Useful for searching for up-to-date information needed to answer questions",
     ),
     Tool(
-        name="TODO",
+        name="Todo",
         func=todo_chain.run,
         description="useful for when you need to come up with todo lists. Input: an objective to create a course for. Output: a todo list for that objective. Please be very clear what the objective is!",
     ),
+    Tool(
+        name="MAP",
+        func=google_place_tool.run,
+        description="This is useful when informing the user of the location of a recommended place or calculating the distance",
+    ),
 ]
 
-
-prefix = """You are an AI who performs one task based on the following objective: {objective}. Take into account these previously completed tasks: {context}."""
-suffix = """Question: {task}
-{agent_scratchpad}"""
 prompt = ZeroShotAgent.create_prompt(
     tools,
-    prefix=prefix,
-    suffix=suffix,
-    input_variables=["objective", "task", "context", "agent_scratchpad"],
 )
 
 llm = OpenAI(temperature=0)
@@ -71,16 +78,4 @@ agent_executor = AgentExecutor.from_agent_and_tools(
     agent=agent, tools=tools, verbose=True
 )
 
-# Logging of LLMChains
-verbose = False
-# If None, will keep on going forever
-max_iterations: Optional[int] = 3
-baby_agi = BabyAGI.from_llm(
-    llm=llm,
-    vectorstore=vectorstore,
-    task_execution_chain=agent_executor,
-    verbose=verbose,
-    max_iterations=max_iterations,
-)
-OBJECTIVE = "Please write an Osaka sightseeing course. I'm planning to go from December 24th to 27th, and I want to go on a trip that focuses on festivals, delicious food, activities, and sightseeing."
-baby_agi({"objective": OBJECTIVE})
+agent_executor.run("한국의 삼성역을 여행할 때 1박 2일 동안 할 만한 여행 루트를 추천해줘")
