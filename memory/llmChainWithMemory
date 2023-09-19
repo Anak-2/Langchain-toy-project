@@ -1,0 +1,56 @@
+from langchain import LLMChain
+from langchain.memory import ConversationBufferMemory
+from langchain.llms import OpenAI
+from langchain.chains import ConversationChain
+from langchain.prompts import PromptTemplate
+import dotenv
+from langchain.chat_models import ChatOpenAI
+from langchain.schema import SystemMessage
+from langchain.prompts import ChatPromptTemplate, HumanMessagePromptTemplate, MessagesPlaceholder
+
+dotenv_file = dotenv.find_dotenv()
+dotenv.load_dotenv(dotenv_file)
+
+# template = """You are a chatbot having a conversation with a human.
+# {chat_history}
+# Human: {human_input}
+# Chatbot:"""
+
+# prompt = PromptTemplate(
+#     input_variables=["chat_history", "human_input"],
+#     template=template
+# )
+# memory = ConversationBufferMemory(memory_key="chat_history")
+
+# llm = OpenAI(temperature=0)
+# conversation = ConversationChain(
+#     llm=llm,
+#     verbose=True,
+#     memory=memory,
+# )
+
+# Chat Model LLMChain
+prompt = ChatPromptTemplate.from_messages([
+    # The persistent system prompt
+    SystemMessage(
+        content="You are a chatbot having a conversation with a human."),
+    # Where the memory will be stored.
+    MessagesPlaceholder(variable_name="chat_history"),
+    HumanMessagePromptTemplate.from_template(
+        "{human_input}"),  # Where the human input will injected
+])
+
+memory = ConversationBufferMemory(
+    memory_key="chat_history", return_messages=True)
+
+llm = ChatOpenAI()
+
+chat_llm_chain = LLMChain(
+    llm=llm,
+    prompt=prompt,
+    verbose=True,
+    memory=memory,
+)
+
+print(chat_llm_chain.predict(human_input="Hello, my name is kim"))
+print(chat_llm_chain.predict(human_input="What is my name?"))

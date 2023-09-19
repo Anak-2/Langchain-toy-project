@@ -12,6 +12,8 @@ from langchain.vectorstores.base import VectorStore
 from pydantic import BaseModel, Field
 from langchain.chains.base import Chain
 from langchain_experimental.autonomous_agents import BabyAGI
+from langchain.tools import GooglePlacesTool
+from langchain.chains import LLMMathChain
 
 import dotenv
 
@@ -21,7 +23,7 @@ from langchain.docstore import InMemoryDocstore
 dotenv_file = dotenv.find_dotenv()
 dotenv.load_dotenv(dotenv_file)
 
-# Define your embedding model
+# Define embedding model
 embeddings_model = OpenAIEmbeddings()
 
 # Initialize the vectorstore as empty
@@ -33,12 +35,26 @@ vectorstore = FAISS(embeddings_model.embed_query,
                     index, InMemoryDocstore({}), {})
 
 
+# Define Tools
 todo_prompt = PromptTemplate.from_template(
     "You are a great travel planner. You should actively ask {objective} from customers how many days they would like to visit the country or city they want to visit, how much it will cost, and activities such as sightseeing, activities, shopping, food, etc."
 )
-
 todo_chain = LLMChain(llm=OpenAI(temperature=0.6), prompt=todo_prompt)
+
+llm_math_chain = LLMMathChain(llm=OpenAI(temperature=0), verbose=True)
+
 search = SerpAPIWrapper()
+
+google_place_tool = GooglePlacesTool()
+
+format_prompt = PromptTemplate.from_template("""
+    Please organize things to do on each day and provide recommended places with information on Google Maps.
+""")
+format_chain = LLMChain(
+    llm=OpenAI(temperature=0.7),
+    prompt=format_prompt
+)
+
 tools = [
     Tool(
         name="Search",
@@ -46,14 +62,31 @@ tools = [
         description="useful for when you need to answer questions about current events",
     ),
     Tool(
-        name="TODO",
+        name="Todo",
         func=todo_chain.run,
-        description="useful for when you need to come up with todo lists. Input: an objective to create a course for. Output: a todo list for that objective. Please be very clear what the objective is!",
+        description="Organizes information that must be provided to the questioner in order to plan a trip",
     ),
+    Tool(
+        name="Calculator",
+        func=llm_math_chain.run,
+        description="useful for when you need to answer questions about calculate math"
+    ),
+    Tool(
+        name="Map",
+        func=google_place_tool.run,
+        description="This is useful when you need accurate information about a place.",
+    ),
+    # Tool(
+    #     name="Formatter",
+    #     func=format_chain.run,
+    #     description="Tools to use when famatting your final answer"
+    # )
 ]
 
 
-prefix = """You are an AI who performs one task based on the following objective: {objective}. Take into account these previously completed tasks: {context}."""
+prefix = """You are the agent who creates great travel plans. 
+            The following is information about the place the questioner would like to plan a trip to: {objective}. 
+            Take into account these previously completed tasks: {context}."""
 suffix = """Question: {task}
 {agent_scratchpad}"""
 prompt = ZeroShotAgent.create_prompt(
@@ -63,18 +96,21 @@ prompt = ZeroShotAgent.create_prompt(
     input_variables=["objective", "task", "context", "agent_scratchpad"],
 )
 
-llm = OpenAI(temperature=0)
+llm = OpenAI(temperature=0.5)
 llm_chain = LLMChain(llm=llm, prompt=prompt)
 tool_names = [tool.name for tool in tools]
 agent = ZeroShotAgent(llm_chain=llm_chain, allowed_tools=tool_names)
+
 agent_executor = AgentExecutor.from_agent_and_tools(
     agent=agent, tools=tools, verbose=True
 )
 
 # Logging of LLMChains
 verbose = False
+
 # If None, will keep on going forever
 max_iterations: Optional[int] = 3
+
 baby_agi = BabyAGI.from_llm(
     llm=llm,
     vectorstore=vectorstore,
@@ -82,5 +118,13 @@ baby_agi = BabyAGI.from_llm(
     verbose=verbose,
     max_iterations=max_iterations,
 )
-OBJECTIVE = "Please write an Osaka sightseeing course. I'm planning to go from December 24th to 27th, and I want to go on a trip that focuses on festivals, delicious food, activities, and sightseeing."
+
+DESTINATION = input("여행지를 입력하세요: ")
+FROM = input("출발 날짜를 입력하세요 (YYYY-MM-DD 형식): ")
+TO = input("도착 날짜를 입력하세요 (YYYY-MM-DD 형식): ")
+DATE = f"I'm planning to go from {FROM} to {TO}"
+OBJECTIVE = f"""Please write an {DESTINATION} travel course. {DATE} and 
+            Please provide with 
+            accommodation information, tourist information, festival information, restaurant information, travel cost information, distance information, etc. that may be helpful in planning the trip.
+"""
 baby_agi({"objective": OBJECTIVE})

@@ -1,4 +1,4 @@
-import hadle_env
+import handle_env
 import os
 from langchain.agents import initialize_agent
 from langchain.agents import AgentType
@@ -10,10 +10,9 @@ from langchain.schema import (
     SystemMessage
 )
 from langchain import OpenAI
-from googletrans import Translator
 import streamlit as st
 
-hadle_env.env_injection()
+handle_env.env_injection()
 
 chat = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0.3)
 
