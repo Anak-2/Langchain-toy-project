@@ -24,9 +24,6 @@ import dotenv
 from langchain.vectorstores import FAISS
 from langchain.docstore import InMemoryDocstore
 
-import tools.googlePlaces
-import tools.search
-
 dotenv_file = dotenv.find_dotenv()
 dotenv.load_dotenv(dotenv_file)
 

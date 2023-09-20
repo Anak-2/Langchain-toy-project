@@ -45,6 +45,18 @@ llm_math_chain = LLMMathChain(llm=OpenAI(temperature=0), verbose=True)
 
 search = SerpAPIWrapper()
 
+
+def trip_wrapper(input_text):
+    search_results = search.run(f"site:trip.com {input_text}")
+    return search_results
+
+
+def naver_place_wrapper(input_text):
+    search_results = search.run(
+        f"site:tripadvisor.com {input_text}")
+    return search_results
+
+
 google_place_tool = GooglePlacesTool()
 
 format_prompt = PromptTemplate.from_template("""
@@ -56,20 +68,26 @@ format_chain = LLMChain(
 )
 
 tools = [
+    # Tool(
+    #     name="Search Trip.com",
+    #     func=trip_wrapper,
+    #     description="useful for when you need to answer travel places",
+    # ),
     Tool(
-        name="Search",
-        func=search.run,
-        description="useful for when you need to answer questions about current events",
+        name="Search naver.com",
+        func=trip_wrapper,
+        description="useful for when you need to answer restaurant places",
     ),
     Tool(
         name="Todo",
         func=todo_chain.run,
-        description="Organizes information that must be provided to the questioner in order to plan a trip",
+        description="Organizes information that must be provided to the questioneBr in order to plan a trip",
     ),
     Tool(
         name="Calculator",
         func=llm_math_chain.run,
-        description="useful for when you need to answer questions about calculate math"
+        description="""useful for when you need to answer questions about calculate math. 
+                     input: The input format must contain numbers."""
     ),
     Tool(
         name="Map",
@@ -106,10 +124,10 @@ agent_executor = AgentExecutor.from_agent_and_tools(
 )
 
 # Logging of LLMChains
-verbose = False
+verbose = True
 
 # If None, will keep on going forever
-max_iterations: Optional[int] = 3
+max_iterations: Optional[int] = 2
 
 baby_agi = BabyAGI.from_llm(
     llm=llm,
