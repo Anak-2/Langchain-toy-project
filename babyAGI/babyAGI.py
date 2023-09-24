@@ -68,13 +68,8 @@ format_chain = LLMChain(
 )
 
 tools = [
-    # Tool(
-    #     name="Search Trip.com",
-    #     func=trip_wrapper,
-    #     description="useful for when you need to answer travel places",
-    # ),
     Tool(
-        name="Search naver.com",
+        name="Search trip.com",
         func=trip_wrapper,
         description="useful for when you need to answer restaurant places",
     ),

@@ -18,6 +18,7 @@ from langchain.memory import ConversationSummaryBufferMemory
 from langchain.document_loaders import AsyncChromiumLoader
 from langchain.document_transformers import BeautifulSoupTransformer
 from langchain.output_parsers import ResponseSchema, StructuredOutputParser
+from langchain.embeddings import OpenAIEmbeddings
 
 import dotenv
 
