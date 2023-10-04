@@ -41,9 +41,7 @@ vectorstore = FAISS(embeddings_model.embed_query,
                     index, InMemoryDocstore({}), {})
 
 template_with_history = """
-Answer the following questions as best you can, but speaking as passionate travel expert.
-You must include "airline ticket" and at lest two or more "tourist attraction" per day in the travel itinerary.
-Also, you need to include at least two or more "restraurants" per day. 
+speaking as like passionate travel expert.
 
 You have access to the following tools:
 
@@ -52,55 +50,62 @@ You have access to the following tools:
 Use the following format:
 
 Question: the input question you must answer
+
 Thought: you should always think about what to do
+
 Action: the action to take, should be one of [{tool_names}]
+
 Action Input: the input to the action
+
 Observation: the result of the action
 ... (this Thought/Action/Action Input/Observation can repeat N times)
+
 Thought: I now know the final answer
-Final Answer: the final answer to the original input question. The final output should be a formatted like markdown as following schema
-Remember when getting information about a restaurant and touris attractions and festivals, bring an image and exact address of them that introduces places.
+
+Final Answer: 
+... the final answer to the original input question. The final output should be a formatted like markdown
+Final Answer: 
 ```
 # Travel Itinerary 
 
 ## Day n
-    // you should consider client's Departure date Return date
+    // you should make schedule (tourist attraction) each day
     
 ### Tourist Attractions
-    // Please write in text why you recommend this place
-    // When introducing a location to a client, you should include the actual location and images to explain it.
-    // Please write images in markdown format. like following schema
-    *** place's name ***
-    !["place's name"]("image url must use tool. Get it using the Search image tool")
+
+    // recommend at least two
+
+    // explain in detail why you recommend this tourist attractions
+    
+    *** Tourist Attractions's name ***
+    // show image by search
     
 ### Restaurants
-    // Please write in text why you recommend this place
-    // When introducing a location to a client, you should include the actual location and images to explain it.
-    // Please write images in markdown format. like following schema
-    *** place's name ***
-    !["place's name"]("image url must use tool. Get it using the Search image tool")
+    
+    // recommend at least two
+    
+    // explain in detail why you recommend this restaurants
+    
+    *** Restaurants's name ***
+    // show image by search
 
 # Festivals
-    // Please write in text why you recommend this place
-    // When introducing a location to a client, you should include the actual location and images to explain it.
-    // Please write images in markdown format. like following schema
-    *** place's name ***
-    !["place's name"]("image url must use tool. Get it using the Search image tool")
+    
+    // explain in detail why you recommend this festivals
+    
+    *** Festival's name ***
+    // show image by search
 
 # Transportation
-    // Recommend transportation that is easy to use and well priced
+
+    // recommend transporation
 ```
-
-Remember when getting information about a restaurant and touris attractions and festivals, bring an image and exact address of them that introduces places.
-
 
 Previous conversation history:
 {history}
 
 Question: {input}
 {agent_scratchpad}
-
-Begin! Remember to answer as a passionate and informative travel expert when giving your final answer in Korean.
 """
 # Set up a prompt template
 
@@ -154,14 +159,20 @@ class CustomOutputParser(AgentOutputParser):
 
 def search_online(input_text):
     search = search_tool.run(
-        f"site:tripadvisor.com things to do{input_text}")
+        f"site:tripadvisor.com things to do {input_text}")
     return search
 
 
 def search_festivals(input_text):
     search = search_tool.run(
-        f"site:tripadvisor.com festivals in{input_text}")
+        f"{input_text}")
     return search
+
+
+def search_image(input_text):
+    search = search_tool.run(
+        f"site:images.google.com get image about {input_text}"
+    )
 
 
 def search_general(input_text):
@@ -263,7 +274,7 @@ async def main():
         Tool(
             name="Search places",
             func=search_places,
-            description="This is useful when search information of real places such as address and place image. You must research within 5 items should not over."
+            description="get detail information of places by google map. You must research within 5 items should not over."
         ),
 
         Tool(
@@ -273,8 +284,8 @@ async def main():
         ),
         Tool(
             name="Search image",
-            func=GoogleSerperAPIWrapper(type="images").run,
-            description="useful for when you need to get image url"
+            func=search_image,
+            description="Useful tool for image search"
         ),
         Tool(
             name="Search tripadvisor",
@@ -322,12 +333,6 @@ async def main():
     agent_executor = AgentExecutor.from_agent_and_tools(
         agent=agent, tools=tools, verbose=True, memory=memory)
 
-    departure = await cl.AskUserMessage(content="어디서 출발하나요?").send()
-    if departure:
-        await cl.Message(
-            content=f"출발지: {departure['content']}",
-        ).send()
-
     dest = await cl.AskUserMessage(content="어디로 여행하고 싶으세요?").send()
     if dest:
         await cl.Message(
@@ -362,12 +367,12 @@ async def main():
     # Retrieve the chain from the user session
     llm_chain = cl.user_session.get("agent")  # type: LLMChain
 
-    message = f"I want to travel to {dest['content']} from {start_date['content']} to {end_date['content']}. Please plan my trip for me."
-    message_kor = f"나는 {start_date['content']}부터 {end_date['content']}까지 ({days_difference}일 동안) {departure['content']}에서 {dest['content']}로 여행하고 싶어. 나 대신에 여행 계획을 짜줘."
+    # message = f"I want to travel to {dest['content']} from {start_date['content']} to {end_date['content']}. Please plan my trip for me."
+    message = f"I want to travel to {dest['content']} from {start_date['content']} to {end_date['content']}. Recommend a travel course such as restaurant and landmarks day by day!"
 
     # Call the chain asynchronously
-    print(message_kor)
-    res = await llm_chain.acall(message_kor, callbacks=[cl.AsyncLangchainCallbackHandler()])
+    print(message)
+    res = await llm_chain.acall(message, callbacks=[cl.AsyncLangchainCallbackHandler()])
     print(res)
     # Do any post processing here
     print(res['output'])
