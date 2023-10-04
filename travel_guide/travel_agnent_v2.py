@@ -41,10 +41,9 @@ vectorstore = FAISS(embeddings_model.embed_query,
                     index, InMemoryDocstore({}), {})
 
 template_with_history = """
-speaking as like passionate travel expert.
+speaking as like passionate tourist guide.
 
 You have access to the following tools:
-
 {tools}
 
 Use the following format:
@@ -62,44 +61,27 @@ Observation: the result of the action
 
 Thought: I now know the final answer
 
+... the final answer to the original input question. The final output should be a markdown as like following schema
 Final Answer: 
-... the final answer to the original input question. The final output should be a formatted like markdown
-Final Answer: 
-```
+
 # Travel Itinerary 
 
-## Day n
-    // you should make schedule (tourist attraction) each day
+## Day n // make schedule each day
     
 ### Tourist Attractions
-
-    // recommend at least two
-
-    // explain in detail why you recommend this tourist attractions
-    
-    *** Tourist Attractions's name ***
-    // show image by search
+    // recommend at least 2 places with comment
+    // put the image of place
     
 ### Restaurants
-    
-    // recommend at least two
-    
-    // explain in detail why you recommend this restaurants
-    
-    *** Restaurants's name ***
-    // show image by search
-
+    // recommend at least 2 places with comment
+    // put the image of place
+ --- 
 # Festivals
     
-    // explain in detail why you recommend this festivals
     
-    *** Festival's name ***
-    // show image by search
+    *** Write Festival's name ***
 
 # Transportation
-
-    // recommend transporation
-```
 
 Previous conversation history:
 {history}
@@ -158,55 +140,48 @@ class CustomOutputParser(AgentOutputParser):
 
 
 def search_online(input_text):
-    search = search_tool.run(
+    search = DuckDuckGoSearchRun().run(
         f"site:tripadvisor.com things to do {input_text}")
     return search
 
 
 def search_festivals(input_text):
-    search = search_tool.run(
+    search = DuckDuckGoSearchRun().run(
         f"{input_text}")
     return search
 
 
 def search_image(input_text):
-    search = search_tool.run(
-        f"site:images.google.com get image about {input_text}"
-    )
+    data = GoogleSerperAPIWrapper(type="images").results(f"{input_text}")
+    thumbnail_urls = [image['thumbnailUrl'] for image in data['images']]
+    return thumbnail_urls
 
 
 def search_general(input_text):
-    search = DuckDuckGoSearchRun().run(f"{input_text}")
+    search = DuckDuckGoSearchRun().run(
+        f"{input_text}"
+    )
     return search
 
 
 def search_hotel(input_text):
-    search = search_tool.run(f"site:booking.com {input_text}")
+    search = DuckDuckGoSearchRun().run(f"site:booking.com {input_text}")
     return search
 
 
 def search_flight(input_text):
-    search = search_tool.run(f"site:skyscanner.com {input_text}")
+    search = DuckDuckGoSearchRun().run(f"site:skyscanner.com {input_text}")
     return search
 
 
 def search_places(input_text):
-    search = GooglePlacesTool().run(f"{input_text}")
+    search = DuckDuckGoSearchRun().run(f"{input_text}")
     return search
 
 
 memory = ConversationBufferWindowMemory(k=2)
 
-
-def _handle_error(error) -> str:
-    return str(error)[:50]
-
-
 dest, start_date, end_date = None, None, None
-
-
-def _handle_error(error) -> str:
-    return str(error)[:50]
 
 
 @cl.on_chat_start
@@ -274,7 +249,7 @@ async def main():
         Tool(
             name="Search places",
             func=search_places,
-            description="get detail information of places by google map. You must research within 5 items should not over."
+            description="A useful tool for getting accurate information about a place. you can search by name of place or address"
         ),
 
         Tool(
@@ -285,27 +260,12 @@ async def main():
         Tool(
             name="Search image",
             func=search_image,
-            description="Useful tool for image search"
+            description="Useful tool for searching image and get url of image"
         ),
         Tool(
             name="Search tripadvisor",
             func=search_online,
             description="useful for when you need to answer trip plan questions"
-        ),
-        Tool(
-            name="Search booking",
-            func=search_hotel,
-            description="useful for when you need to answer hotel questions"
-        ),
-        # Tool(
-        #     name="Search flight",
-        #     func=search_flight,
-        #     description="useful for when you need to answer flight questions"
-        # ),
-        Tool(
-            name="Search festivals",
-            func=search_festivals,
-            description="useful for when you need to answer festivals in related areas"
         )
 
     ]
@@ -368,11 +328,13 @@ async def main():
     llm_chain = cl.user_session.get("agent")  # type: LLMChain
 
     # message = f"I want to travel to {dest['content']} from {start_date['content']} to {end_date['content']}. Please plan my trip for me."
-    message = f"I want to travel to {dest['content']} from {start_date['content']} to {end_date['content']}. Recommend a travel course such as restaurant and landmarks day by day!"
+    message = f"I want to travel to {dest['content']} from {start_date['content']} to {end_date['content']}. Recommend a travel course such as restaurant and landmarks each day of my travel itinerary!"
+    message2 = f"Based on previous results, it checks whether the restaurants and tourist spots actually exist, checks whether there are thumbnails and descriptions for each place, and creates a travel itinerary."
 
     # Call the chain asynchronously
     print(message)
     res = await llm_chain.acall(message, callbacks=[cl.AsyncLangchainCallbackHandler()])
+    res = await llm_chain.acall(message2, callbacks=[cl.AsyncLangchainCallbackHandler()])
     print(res)
     # Do any post processing here
     print(res['output'])
